@@ -1,0 +1,19 @@
+
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "FastAPI Debug",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "python": "/home/ubuntu/.cache/pypoetry/virtualenvs/project-one-SyuGqBAi-py3.12/bin/python",
+            "args": [
+                "app.main:app"
+            ],
+            "cwd": "${workspaceFolder}",
+            "jinja": true,
+            "justMyCode": true
+        }
+    ]
+}
