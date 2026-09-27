@@ -1,4 +1,8 @@
 # tests/conftest.py
+# tests/conftest.py — add at very top, before any imports
+import os
+os.environ["TESTING"] = "true"
+# ↑ Must be set BEFORE app imports — app reads this at module load time
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -7,7 +11,18 @@ from sqlalchemy.pool import StaticPool
 
 from app.main import app
 from app.db.database import Base, get_db
+# tests/conftest.py — add this fixture
 
+from app.core.limiter import limiter
+from slowapi.wrappers import Limit
+
+@pytest.fixture(autouse=True)
+def disable_rate_limit():
+    # Temporarily disable rate limiting during tests
+    # Without this, rapid test execution hits rate limits → 429 errors
+    from unittest.mock import patch
+    with patch.object(limiter, "_storage", None):
+        yield
 # ── Test Database ────────────────────────────────────────────
 # SQLite in-memory = fast, isolated, no cleanup needed
 # Each test gets fresh tables — no leftover data between tests
