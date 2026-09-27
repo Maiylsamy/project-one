@@ -1,0 +1,68 @@
+# .github/workflows/ci.yml
+name: CI — Test + Security + Deploy
+
+on:
+  push:
+    branches: [main]
+    # ↑ Triggers on every push to main branch
+  pull_request:
+    branches: [main]
+    # ↑ Also triggers on pull requests — blocks merge if tests fail
+
+jobs:
+  test:
+    name: Security Scan + Tests
+    runs-on: ubuntu-latest
+    # ↑ Runs on GitHub's free Linux servers
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        # ↑ Downloads your repo code into the CI runner
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+        # ↑ Installs exact Python version matching your dev environment
+
+      - name: Cache Poetry dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: ${{ runner.os }}-poetry-${{ hashFiles('poetry.lock') }}
+        # ↑ Caches installed packages — skips reinstall if poetry.lock unchanged
+        #   Makes CI run 2-3x faster after first run
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies
+        run: poetry install
+        # ↑ Installs ALL deps including dev (pytest, bandit) for CI
+
+      - name: Run Bandit security scan
+        run: poetry run bandit -r app/ -ll -x tests/
+        # ↑ Scans your code for security issues
+        #   -ll = only medium/high severity
+        #   -x tests/ = skip test files
+
+      - name: Run tests with coverage
+        env:
+          # ↑ CI doesn't have your .env file — inject vars directly here
+          SECRET_KEY: "ci-test-secret-key-not-real"
+          DATABASE_URL: "sqlite://"
+          # ↑ SQLite for CI — no real Postgres needed, tests use override anyway
+          DEBUG: "True"
+          ALLOWED_ORIGINS: "http://localhost:3000"
+          ACCESS_TOKEN_EXPIRE_MINUTES: "30"
+        run: poetry run pytest --cov=app --cov-report=xml --cov-fail-under=80
+        # ↑ Fails entire CI if coverage drops below 80%
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
+          # ↑ Uploads coverage to codecov.io (free) — shows coverage badge on README
+          #   fail_ci_if_error=false = don't block deploy if codecov itself has issues
